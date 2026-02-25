@@ -1,0 +1,114 @@
+<!DOCTYPE html><html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viewer Messages TikTok</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">  <div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+      <h1 class="text-2xl font-bold mb-2">📥 Importer un JSON TikTok</h1>
+      <p class="text-gray-500 mb-4">Charge ton fichier de données TikTok pour afficher la conversation.</p><div class="flex flex-col md:flex-row gap-3">
+    <input id="fileInput" type="file" accept=".json" class="flex-1 border rounded-xl p-3 cursor-pointer" />
+    <button id="goTopBtn" class="bg-black text-white px-4 py-2 rounded-xl shadow hover:opacity-90">
+      ⏫ Aller au premier message
+    </button>
+  </div>
+</div>
+
+<div id="chatContainer" class="bg-white rounded-2xl shadow-lg p-4 h-[70vh] overflow-y-auto space-y-3">
+  <p class="text-center text-gray-400">Aucune conversation chargée</p>
+</div>
+
+  </div>  <script>
+    const fileInput = document.getElementById('fileInput');
+    const chatContainer = document.getElementById('chatContainer');
+    const goTopBtn = document.getElementById('goTopBtn');
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const text = await file.text();
+      let json;
+
+      try {
+        json = JSON.parse(text);
+      } catch (err) {
+        alert('❌ JSON invalide');
+        return;
+      }
+
+      renderTikTokMessages(json);
+    });
+
+    // Bouton aller au premier message
+    goTopBtn.addEventListener('click', () => {
+      chatContainer.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+
+    function renderTikTokMessages(data) {
+      chatContainer.innerHTML = '';
+
+      // Essaie de trouver les messages (structure TikTok typique)
+      let messages = [];
+
+      if (data.messages) {
+        messages = data.messages;
+      } else if (Array.isArray(data)) {
+        messages = data;
+      } else if (data.ChatHistory) {
+        messages = data.ChatHistory;
+      }
+
+      if (!messages.length) {
+        chatContainer.innerHTML = '<p class="text-center text-red-500">⚠️ Aucun message trouvé dans le JSON</p>';
+        return;
+      }
+
+      // Trier par date si possible
+      messages.sort((a, b) => {
+        const t1 = new Date(a.create_time || a.timestamp || 0);
+        const t2 = new Date(b.create_time || b.timestamp || 0);
+        return t1 - t2;
+      });
+
+      messages.forEach(msg => {
+        const isMe = msg.sender === 'You' || msg.from === 'You';
+        const text = msg.text || msg.content || '[Message non texte]';
+        const timeRaw = msg.create_time || msg.timestamp;
+        const time = timeRaw ? new Date(timeRaw).toLocaleString() : '';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+
+        const bubble = document.createElement('div');
+        bubble.className = `max-w-[70%] px-4 py-2 rounded-2xl shadow ${
+          isMe
+            ? 'bg-black text-white rounded-br-md'
+            : 'bg-gray-200 text-gray-900 rounded-bl-md'
+        }`;
+
+        bubble.innerHTML = `
+          <div class="text-sm whitespace-pre-wrap">${escapeHtml(text)}</div>
+          <div class="text-[10px] opacity-60 mt-1 text-right">${time}</div>
+        `;
+
+        wrapper.appendChild(bubble);
+        chatContainer.appendChild(wrapper);
+      });
+
+      // Scroll en bas après chargement
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script></body>
+</html>
